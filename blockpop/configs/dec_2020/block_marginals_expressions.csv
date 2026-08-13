@@ -1,0 +1,3 @@
+name,group,variables,seed_expression
+owner,tenure,"['H4_002N','H4_003N']",households.tenure == 1
+renter,tenure,['H4_004N'],households.tenure == 2

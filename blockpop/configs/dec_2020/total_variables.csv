@@ -1,0 +1,5 @@
+name,variables,seed_expression,control_alias
+units,['H1_001N'],,
+hh,['H3_002N'],households.WGTP > 0,num_hh
+hhpop,['P15_001N'],persons.household_id > 0,num_persons
+total_pop,['P1_001N'],,
