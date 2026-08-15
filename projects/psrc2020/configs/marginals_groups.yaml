@@ -46,6 +46,9 @@ building_type:
 hh_type:
 - {with_chilren: [with_chilren]}
 - {no_children: [no_children]}
+vacant_type:
+- {renter: [for_rent, rented_not_occupied, migrant, other]}
+- {owner: [for_sale, sold_not_occupied, seasonal]}
 occupation:
 - {'11': ['11']}
 - {'13': ['13']}

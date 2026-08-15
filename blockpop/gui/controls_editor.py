@@ -119,26 +119,28 @@ def seed_table_from_expr(expr: str) -> str:
 
 def get_group_bins(project_dir: Path) -> "OrderedDict[str, list[tuple[str, list[str], str]]]":
     """Return ``{group: [(bin_name, [components], source), ...]}`` where
-    ``source`` is ``'acs'`` or ``'dec'``. Always appends a ``tenure`` group
-    backed by the DEC block_marginals expressions.
+    ``source`` is ``'acs'`` or ``'dec'``. Groups present in the DEC block
+    marginals CSV but absent from the yaml (e.g. ``tenure``) are appended 1:1.
     """
     yaml_groups = load_marginals_groups(project_dir)
+    dec_expr = load_dec_block_marginals_expr()
+    dec_group_names: "OrderedDict[str, list[str]]" = OrderedDict()
+    for group, name in dec_expr.keys():
+        dec_group_names.setdefault(group, []).append(name)
+
     out: "OrderedDict[str, list[tuple[str, list[str], str]]]" = OrderedDict()
     for group, bins in yaml_groups.items():
-        out[group] = [(name, comps, "acs") for name, comps in bins]
+        source = "dec" if group in dec_group_names else "acs"
+        out[group] = [(name, comps, source) for name, comps in bins]
 
-    # Auto-included tenure (DEC) — only if present in the DEC expressions CSV
-    dec_expr = load_dec_block_marginals_expr()
-    tenure_names = [name for (g, name) in dec_expr.keys() if g == "tenure"]
-    if tenure_names:
-        out["tenure"] = [(name, [name], "dec") for name in tenure_names]
+    for group, names in dec_group_names.items():
+        if group not in out:
+            out[group] = [(name, [name], "dec") for name in names]
     return out
 
 
-def geographies_for_group(group: str) -> list[str]:
-    if group == "tenure":
-        return _GEO_DEC
-    return _GEO_ACS
+def geographies_for_group(group: str, source: str = "acs") -> list[str]:
+    return _GEO_DEC if source == "dec" else _GEO_ACS
 
 
 def geographies_for_total(source: str) -> list[str]:
@@ -152,11 +154,11 @@ def geographies_for_total(source: str) -> list[str]:
 
 _AUTO_ROWS = [
     {
-        "target": "num_hh",
+        "target": "num_units",
         "geography": "block_id",
         "seed_table": "households",
         "importance": 1_000_000_000,
-        "control_field": "num_hh",
+        "control_field": "num_units",
         "expression": "(households.wgtp > 0) & (households.wgtp < np.inf)",
     },
     {
@@ -186,8 +188,8 @@ def build_controls_rows(
             continue
         geog = group_choices[group]["geography"]
         importance = int(group_choices[group]["importance"])
-        expr_lookup = dec_expr if group == "tenure" else acs_expr
-        for bin_name, components, _src in bins:
+        for bin_name, components, src in bins:
+            expr_lookup = dec_expr if src == "dec" else acs_expr
             comp_exprs = [expr_lookup.get((group, c), "") for c in components]
             combined = combine_seed_expressions(comp_exprs)
             if not combined:
@@ -357,7 +359,7 @@ def render(project_dir: Path):
         with st.expander(f"**{group}** ({len(bins)} bin{'s' if len(bins) != 1 else ''})", expanded=True):
             preview = ", ".join(f"`{b[0]}`" for b in bins)
             st.caption(f"Bins: {preview}")
-            geo_options = geographies_for_group(group)
+            geo_options = geographies_for_group(group, bins[0][2] if bins else "acs")
             geo_key = f"ctrl_geog__{group}"
             imp_key = f"ctrl_imp__{group}"
             geo_kwargs = {} if geo_key in st.session_state else {"index": 0}

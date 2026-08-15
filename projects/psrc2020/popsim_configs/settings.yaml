@@ -32,12 +32,11 @@ input_table_list:
   filename: block_marginals.csv
 household_weight_col: wgtp
 household_id_col: hh_id
-total_hh_control: num_hh
+total_hh_control: num_units
 control_file_name: controls.csv
 output_tables:
   action: include
   tables:
-  - summary_block_id
   - summary_tract_id
   - summary_region
   - expanded_household_ids
@@ -64,6 +63,8 @@ output_synthetic_population:
     - wgtp
     - serialno
     - hh_id
+    - is_vacant
+    - vacant_type
   persons:
     filename: synthetic_persons.csv
     columns:

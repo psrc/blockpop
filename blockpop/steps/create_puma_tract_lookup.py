@@ -16,11 +16,13 @@ def get_census_geography_year(pums_year):
         )
     elif pums_year >= 2016 and pums_year <= 2021:
         return 2010
-    elif pums_year < 2016:
+    elif pums_year >= 2012 and pums_year < 2016:
         raise ValueError(
-            "PUMS is only setup for 2016 onwards to work with either 2010 or 2020 "
-            "PUMA geographies."
+            "PUMS data for 2012-2015 is split between 2000 and 2010 PUMA geographies. "
+            "Please choose either 2011 or 2016 for pums_year."
         )
+    elif pums_year >= 2009 and pums_year < 2012:
+        return 2000
     else:
         raise ValueError("PUMS year out of range.")
 

@@ -2,14 +2,28 @@ import ast
 
 import pandas as pd
 
-from blockpop.util.census_api import CensusAPI, build_variables_by_group, build_totals_variables_dict, check_totals, columns_to_int
+from blockpop.util.census_api import CensusAPI, build_aggregated_variables_by_group, build_variables_by_group, build_totals_variables_dict, check_totals, columns_to_int
 from blockpop.util.pipeline import Pipeline
+
+
+def get_selected_groups(pipeline):
+    """Return the variables-by-group dict for the decennial groups to download.
+
+    Honors ``marginals_groups.yaml`` (selected + ``always_download`` groups)
+    when present, otherwise falls back to every group in the config CSV.
+    """
+    yaml_path = pipeline.settings_path / 'marginals_groups.yaml'
+    if yaml_path.exists():
+        return build_aggregated_variables_by_group(
+            pipeline.dec_config_dir, 'block_marginals_expressions.csv', yaml_path
+        )
+    return build_variables_by_group(pipeline.dec_config_dir, 'block_marginals_expressions.csv')
 
 
 def block_marginals_data(pipeline, totals_df):
     census_api = CensusAPI(pipeline.CENSUS_KEY, timeout=300)
     pipeline.create_directory(path=str(pipeline._get_intermediate_dir() / 'dec_data'))
-    groups = build_variables_by_group(pipeline.dec_config_dir, 'block_marginals_expressions.csv')
+    groups = get_selected_groups(pipeline)
     for group_name, variables_dict in groups.items():
         print(f'Downloading decennial block marginals group: {group_name}')
         try:

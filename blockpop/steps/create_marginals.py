@@ -8,22 +8,11 @@ from iteround import saferound
 from blockpop.util.pipeline import Pipeline
 
 
-# Known group prefixes (longest-first to avoid ambiguous matches like
-# 'hhpop_age' vs 'hhpop_race').
-KNOWN_GROUPS = [
-    'hhpop_ethnicity',
-    'hhpop_race',
-    'hhpop_age',
-    'building_type',
-    'home_value',
-    'hh_type',
-    'occupation',
-    'industry',
-    'income',
-    'tenure',
-    'hhsz',
-    'rent',
-]
+# Group prefixes, longest-first to avoid ambiguous matches like 'hhpop_age'
+# vs 'hhpop_race'. Populated from the config expression files by
+# _load_known_groups; _DEC_GROUPS records which of them are decennial.
+_KNOWN_GROUPS = []
+_DEC_GROUPS = set()
 
 # Standalone (non-group) controls map a control target directly to a totals
 # column instead of being scaled from an ACS category group. The mapping is
@@ -41,11 +30,38 @@ GROUP_TOTAL_OVERRIDES = {
 }
 
 
+def _load_known_groups(pipeline):
+    """Populate the module-level group lists from the ACS/decennial configs."""
+    acs_groups = _read_config_groups(
+        Path(pipeline.acs_config_dir) / 'marginals_expressions.csv'
+    )
+    dec_groups = _read_config_groups(
+        Path(pipeline.dec_config_dir) / 'block_marginals_expressions.csv'
+    )
+    _DEC_GROUPS.clear()
+    _DEC_GROUPS.update(dec_groups)
+    _KNOWN_GROUPS[:] = sorted(acs_groups | dec_groups, key=len, reverse=True)
+
+
+def _read_config_groups(path):
+    if not path.exists():
+        return set()
+    df = pd.read_csv(path, dtype=str)
+    return {str(g).strip() for g in df['group'].dropna() if str(g).strip()}
+
+
+def _load_dec_total_columns(pipeline):
+    """Return the decennial total column names (units, hh, hhpop, ...)."""
+    path = Path(pipeline.dec_config_dir) / 'total_variables.csv'
+    df = pd.read_csv(path, dtype=str)
+    return [str(n).strip() for n in df['name'].dropna() if str(n).strip()]
+
+
 def _derive_group(target, special_controls):
     """Return the group name for a control target, or None for specials."""
     if target in special_controls:
         return None
-    for grp in KNOWN_GROUPS:
+    for grp in _KNOWN_GROUPS:
         if target == grp or target.startswith(grp + '_'):
             return grp
     raise ValueError(f"Cannot determine group for control target '{target}'")
@@ -197,31 +213,14 @@ def _validate_controls(controls, group_to_columns, special_totals):
 
 
 def _read_group_table(pipeline, group):
-    """Load an ACS group table (or decennial tenure) from intermediate output."""
-    if group == 'tenure':
-        return pipeline.get_table('dec_data/tenure')
+    """Load a group table from the decennial or ACS intermediate output."""
+    if group in _DEC_GROUPS:
+        return pipeline.get_table(f'dec_data/{group}')
     return pipeline.get_table(f'acs_data/{group}')
 
 
-def _group_target_for_block(target):
-    """Map a block-level control target to its expected total column.
-
-    Block-level controls don't follow the group_totals mapping (they come from
-    decennial counts directly), so we hard-code the relationships used here.
-    """
-    if target == 'num_hh':
-        return 'hh'
-    if target.startswith('tenure_'):
-        return 'hh'
-    return None
-
-
 def _group_targets_in_df(df, controls, geography, group_total_map, special_totals):
-    """Build {group: (total_col, [target_cols])} for the given geography.
-
-    For block geography, falls back to `_group_target_for_block` since the
-    group_totals.csv mapping doesn't apply (no proportional scaling there).
-    """
+    """Build {group: (total_col, [target_cols])} for the given geography."""
     geog_controls = controls[controls['geography'] == geography]
     grouped = {}
     for _, row in geog_controls.iterrows():
@@ -231,10 +230,7 @@ def _group_targets_in_df(df, controls, geography, group_total_map, special_total
             grouped.setdefault(target, (total_col, []))[1].append(target)
             continue
         group = _derive_group(target, special_totals)
-        if geography == 'block_id':
-            total_col = _group_target_for_block(target)
-        else:
-            total_col = group_total_map.get(group)
+        total_col = group_total_map.get(group)
         if total_col is None:
             continue
         grouped.setdefault(group, (total_col, []))[1].append(target)
@@ -352,7 +348,8 @@ def _check_cross_geog_totals(child_df, controls, geography, group_total_map,
         )
 
 
-def build_block_marginals(pipeline, controls, lookup, dec_totals_block):
+def build_block_marginals(pipeline, controls, lookup, dec_totals_block,
+                          special_totals, total_cols):
     """Block-level marginals: direct decennial counts only."""
     block_controls = controls[controls['geography'] == 'block_id']
 
@@ -361,33 +358,44 @@ def build_block_marginals(pipeline, controls, lookup, dec_totals_block):
 
     # Always-present extra totals from dec_totals (for QA).
     extras = dec_totals_block.set_index('geoid')
-    for col in ('hh', 'hhpop', 'total_pop', 'units'):
+    for col in total_cols:
         if col in extras.columns:
             out[col] = out['block_id'].map(extras[col]).fillna(0).astype(np.int64)
 
-    tenure_df = None
+    group_tables = {}
     for _, row in block_controls.iterrows():
         target = str(row['target'])
-        if target == 'num_hh':
-            out[target] = out['hh'] if 'hh' in out.columns else \
-                out['block_id'].map(extras['hh']).fillna(0).astype(np.int64)
-        elif target.startswith('tenure_'):
-            if tenure_df is None:
-                tenure_df = _read_group_table(pipeline, 'tenure').set_index('geoid')
-            if target not in tenure_df.columns:
-                raise RuntimeError(f"Column '{target}' missing from dec_data/tenure")
-            out[target] = out['block_id'].map(tenure_df[target]).fillna(0).astype(np.int64)
-        else:
+        if target in special_totals:
+            total_col = special_totals[target]
+            if total_col not in out.columns:
+                raise RuntimeError(
+                    f"Decennial total '{total_col}' for control '{target}' is "
+                    f"not available at block level."
+                )
+            out[target] = out[total_col]
+            continue
+
+        group = _derive_group(target, special_totals)
+        if group not in _DEC_GROUPS:
             raise RuntimeError(
-                f"Unsupported block-level control '{target}' (only num_hh and "
-                f"tenure_* are supported at block level)."
+                f"Block-level control '{target}' belongs to group '{group}', "
+                f"which has no decennial block data."
             )
+        if group not in group_tables:
+            df = _read_group_table(pipeline, group)
+            df['geoid'] = df['geoid'].astype(np.int64)
+            group_tables[group] = df.set_index('geoid')
+        group_df = group_tables[group]
+        if target not in group_df.columns:
+            raise RuntimeError(f"Column '{target}' missing from dec_data/{group}")
+        out[target] = out['block_id'].map(group_df[target]).fillna(0).astype(np.int64)
 
     return out
 
 
 def build_tract_marginals(pipeline, controls, lookup, group_total_map,
-                          dec_totals_tract, tenure_tract, special_totals):
+                          dec_totals_tract, tenure_tract, special_totals,
+                          total_cols):
     """Tract-level marginals: ACS proportions × tract decennial totals."""
     tract_controls = controls[controls['geography'] == 'tract_id']
     tract_to_county = _tract_to_county(lookup)
@@ -399,7 +407,7 @@ def build_tract_marginals(pipeline, controls, lookup, group_total_map,
     tenure = tenure_tract.set_index('tract_id')
 
     totals_lookup = pd.DataFrame(index=tracts['tract_id'].values)
-    for col in ('hh', 'hhpop', 'total_pop', 'units'):
+    for col in total_cols:
         if col in totals.columns:
             totals_lookup[col] = totals[col]
     if 'tenure_owner' in tenure.columns:
@@ -409,9 +417,8 @@ def build_tract_marginals(pipeline, controls, lookup, group_total_map,
     totals_lookup = totals_lookup.fillna(0)
 
     # Add extras to output for QA.
-    for col in ('hh', 'hhpop', 'total_pop', 'units', 'owner_hh', 'renter_hh'):
-        if col in totals_lookup.columns:
-            out[col] = out['tract_id'].map(totals_lookup[col]).fillna(0).astype(np.int64)
+    for col in totals_lookup.columns:
+        out[col] = out['tract_id'].map(totals_lookup[col]).fillna(0).astype(np.int64)
 
     # Group controls by group so we read each ACS table once.
     grouped = {}
@@ -463,7 +470,7 @@ def build_tract_marginals(pipeline, controls, lookup, group_total_map,
 
 def build_region_marginals(pipeline, controls, lookup, group_total_map,
                            dec_totals_block, tenure_block, acs_totals_tract,
-                           special_totals):
+                           special_totals, total_cols):
     """Region-level marginals: ACS region sum scaled to decennial region total."""
     region_controls = controls[controls['geography'] == 'region']
 
@@ -474,7 +481,7 @@ def build_region_marginals(pipeline, controls, lookup, group_total_map,
     project_blocks = set(lookup['block_id'].astype(np.int64).tolist())
     dec_in = dec_totals_block[dec_totals_block['geoid'].astype(np.int64).isin(project_blocks)]
     region_totals = {}
-    for col in ('hh', 'hhpop', 'total_pop', 'units'):
+    for col in total_cols:
         if col in dec_in.columns:
             region_totals[col] = int(dec_in[col].sum())
 
@@ -490,9 +497,8 @@ def build_region_marginals(pipeline, controls, lookup, group_total_map,
         region_totals['workers'] = int(acs_in['workers'].sum())
 
     # Add extras to output for QA.
-    for col in ('hh', 'hhpop', 'total_pop', 'units', 'owner_hh', 'renter_hh', 'workers'):
-        if col in region_totals:
-            out[col] = region_totals[col]
+    for col, val in region_totals.items():
+        out[col] = val
 
     # Group controls by group.
     grouped = {}
@@ -557,8 +563,10 @@ def run_step(context):
     controls['geography'] = controls['geography'].astype(str)
 
     # Mappings & lookups.
+    _load_known_groups(pipeline)
     group_total_map = _load_group_totals(pipeline)
     special_totals = _load_special_control_totals(pipeline)
+    total_cols = _load_dec_total_columns(pipeline)
     lookup = _build_block_lookup(pipeline)
 
     # Source tables.
@@ -584,18 +592,21 @@ def run_step(context):
 
     # Build outputs.
     print('Building block marginals')
-    block_marginals = build_block_marginals(pipeline, controls, lookup, dec_totals_block)
+    block_marginals = build_block_marginals(
+        pipeline, controls, lookup, dec_totals_block, special_totals, total_cols,
+    )
 
     print('Building tract marginals')
     tract_marginals = build_tract_marginals(
         pipeline, controls, lookup, group_total_map,
-        dec_totals_tract, tenure_tract, special_totals,
+        dec_totals_tract, tenure_tract, special_totals, total_cols,
     )
 
     print('Building region marginals')
     region_marginals, region_totals = build_region_marginals(
         pipeline, controls, lookup, group_total_map,
         dec_totals_block, tenure_block, acs_totals_tract, special_totals,
+        total_cols,
     )
 
     # Validate per-row group totals at every geography.

@@ -13,7 +13,8 @@ pipeline.
 
 The command used to launch PopulationSim can be overridden in
 ``settings.yaml`` via the ``populationsim_command`` key (a list of args).
-It defaults to ``["uv", "run", "python", "-m", "populationsim"]``.
+It defaults to ``["uv", "run", "python", "-m", "blockpop.util.popsim_main"]``,
+which applies the zero-person-household patch described in that module.
 """
 
 import subprocess
@@ -81,7 +82,7 @@ def get_command(
     if cmd:
         base = cmd.split() if isinstance(cmd, str) else list(cmd)
     else:
-        base = ["uv", "run", "python", "-m", "populationsim"]
+        base = ["uv", "run", "python", "-m", "blockpop.util.popsim_main"]
     return base + [
         "-c", str(config_dir),
         "-d", str(data_dir),

@@ -5,6 +5,7 @@ hhpop_age,hhpop
 race_ethnicity,total_pop
 income,hh
 tenure,hh
+vacant_type,vacant_units
 building_type,units
 hh_type,hh
 industry,workers

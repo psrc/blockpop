@@ -67,7 +67,7 @@ input_table_list:
 # ------------------------------------------------------------------
 household_weight_col: wgtp
 household_id_col: hh_id
-total_hh_control: num_hh
+total_hh_control: num_units
 
 
 # Control Specification File Name

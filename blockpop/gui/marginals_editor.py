@@ -20,6 +20,7 @@ import yaml
 # ---------------------------------------------------------------------------
 _PKG_DIR = Path(__file__).resolve().parent.parent
 _CSV_PATH = _PKG_DIR / "configs" / "acs_2024" / "marginals_expressions.csv"
+_DEC_CSV_PATH = _PKG_DIR / "configs" / "dec_2020" / "block_marginals_expressions.csv"
 
 
 # ---------------------------------------------------------------------------
@@ -37,6 +38,27 @@ def get_group_columns(df: pd.DataFrame) -> dict[str, list[str]]:
     for _, row in df.iterrows():
         g = row["group"]
         groups.setdefault(g, []).append(str(row["name"]))
+    return groups
+
+
+def get_dec_group_columns(csv_path: Path) -> dict[str, list[str]]:
+    """Decennial block groups available for binning.
+
+    ``always_download`` groups (e.g. tenure) are excluded because they are
+    downloaded 1:1 regardless of the yaml.
+    """
+    if not csv_path.exists():
+        return OrderedDict()
+    df = load_expressions(csv_path)
+    groups = get_group_columns(df)
+    if "always_download" in df.columns:
+        always = {
+            row["group"]
+            for _, row in df.iterrows()
+            if str(row.get("always_download", "")).strip().upper() == "TRUE"
+        }
+        for g in always:
+            groups.pop(g, None)
     return groups
 
 
@@ -240,6 +262,7 @@ def render(project_dir: Path):
     excluded_groups = {'total_pop_age'}
     for g in excluded_groups:
         group_columns.pop(g, None)
+    group_columns.update(get_dec_group_columns(_DEC_CSV_PATH))
     all_groups = list(group_columns.keys())
 
     # Suffix maps: names are used directly (no group prefix stripping needed)
