@@ -17,7 +17,7 @@ from blockpop.gui import (
     county_selector,
     controls_editor,
     marginals_editor,
-    populationsim_runner,
+    population_synthesis,
     project_creator,
 )
 from blockpop.gui.projects import list_projects, projects_root
@@ -30,7 +30,7 @@ _TABS = [
     ("County Selection", county_selector.render),
     ("Marginals Groups", marginals_editor.render),
     ("Controls", controls_editor.render),
-    ("Population Synthesis", populationsim_runner.render),
+    ("Population Synthesis", population_synthesis.render),
 ]
 
 
