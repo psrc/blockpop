@@ -37,6 +37,7 @@ control_file_name: controls.csv
 output_tables:
   action: include
   tables:
+  - summary_block_id
   - summary_tract_id
   - summary_region
   - expanded_household_ids
@@ -65,6 +66,7 @@ output_synthetic_population:
     - hh_id
     - is_vacant
     - vacant_type
+    - year_built
   persons:
     filename: synthetic_persons.csv
     columns:
@@ -94,6 +96,6 @@ run_list:
   - sub_balancing.geography=tract_id
   - sub_balancing.geography=block_id
   - expand_households
-  - summarize
+  # - summarize
   - write_tables
   - write_synthetic_population

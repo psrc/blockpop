@@ -36,8 +36,17 @@ income_125k_plus,tract_id,households,3000,income_125k_plus,((households.income >
 building_type_sf_detached,tract_id,households,500,building_type_sf_detached,households.building_type == 2
 building_type_middle,tract_id,households,500,building_type_middle,(households.building_type == 1) | (households.building_type == 3) | (households.building_type == 4) | (households.building_type == 5) | (households.building_type == 10)
 building_type_mf,tract_id,households,500,building_type_mf,(households.building_type == 6) | (households.building_type == 7) | (households.building_type == 8) | (households.building_type == 9)
+year_built_pre_1940,tract_id,households,800,year_built_pre_1940,(households.year_built > 0) & (households.year_built < 1940)
+year_built_1940_1959,tract_id,households,800,year_built_1940_1959,((households.year_built >= 1940) & (households.year_built < 1950)) | ((households.year_built >= 1950) & (households.year_built < 1960))
+year_built_1960_1979,tract_id,households,800,year_built_1960_1979,((households.year_built >= 1960) & (households.year_built < 1970)) | ((households.year_built >= 1970) & (households.year_built < 1980))
+year_built_1980_1999,tract_id,households,800,year_built_1980_1999,((households.year_built >= 1980) & (households.year_built < 1990)) | ((households.year_built >= 1990) & (households.year_built < 2000))
+year_built_2000_2009,tract_id,households,800,year_built_2000_2009,(households.year_built >= 2000) & (households.year_built < 2010)
+year_built_2010_2019,tract_id,households,800,year_built_2010_2019,(households.year_built >= 2010) & (households.year_built < 2020)
+year_built_2020_plus,tract_id,households,800,year_built_2020_plus,households.year_built >= 2020
 hh_type_with_chilren,tract_id,households,1000,hh_type_with_chilren,households.children > 0
 hh_type_no_children,tract_id,households,1000,hh_type_no_children,(households.persons > 0) & (households.children == 0)
+vacant_type_renter,block_id,households,100,vacant_type_renter,(households.vacant_type == 1) | (households.vacant_type == 2) | (households.vacant_type == 6) | (households.vacant_type == 7)
+vacant_type_owner,block_id,households,100,vacant_type_owner,(households.vacant_type == 3) | (households.vacant_type == 4) | (households.vacant_type == 5)
 occupation_11,region,persons,500,occupation_11,persons.occupation == 11
 occupation_13,region,persons,500,occupation_13,persons.occupation == 13
 occupation_15,region,persons,500,occupation_15,persons.occupation == 15
@@ -75,5 +84,3 @@ industry_7172,region,persons,500,industry_7172,persons.industry == 7172
 industry_81,region,persons,500,industry_81,persons.industry == 81
 tenure_owner,block_id,households,500,tenure_owner,households.tenure == 1
 tenure_renter,block_id,households,500,tenure_renter,households.tenure == 2
-vacant_type_owner,block_id,households,100,vacant_type_owner,(households.vacant_type == 3) | (households.vacant_type == 4) | (households.vacant_type == 5)
-vacant_type_renter,block_id,households,100,vacant_type_renter,(households.vacant_type == 1) | (households.vacant_type == 2) | (households.vacant_type == 6) | (households.vacant_type == 7)

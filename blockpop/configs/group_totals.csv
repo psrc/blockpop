@@ -12,3 +12,4 @@ industry,workers
 occupation,workers
 home_value,owner_hh
 rent,renter_hh
+year_built,units

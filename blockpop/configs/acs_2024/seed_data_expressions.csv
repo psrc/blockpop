@@ -42,3 +42,4 @@ persons.hh_id,persons['household_id'],
 persons.per_num,persons['SPORDER'],
 households.is_vacant,(households['VACS'] > 0).astype(int),
 households.vacant_type,households['VACS'].fillna(0).astype(int),blank for occupied units
+households.year_built,households['YRBLT'].fillna(-1).astype(int)

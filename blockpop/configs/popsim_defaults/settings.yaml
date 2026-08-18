@@ -116,7 +116,7 @@ run_list:
     - sub_balancing.geography=tract_id
     - sub_balancing.geography=block_id
     - expand_households
-    - summarize
+    # - summarize
     - write_tables
     - write_synthetic_population
 
