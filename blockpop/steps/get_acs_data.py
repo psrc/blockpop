@@ -80,9 +80,10 @@ def acs_data(pipeline,totals_df):
 
 def evaluate_acs_expressions(pipeline):
     marginals = pd.read_csv(pipeline.acs_config_dir / 'marginals_expressions.csv')
+    calculated_expression = marginals['calculated_expression']
     expr_rows = marginals[
-        marginals['calculated_expression'].notna()
-        & (marginals['calculated_expression'].str.strip() != '')
+        calculated_expression.notna()
+        & (calculated_expression.astype(str).str.strip() != '')
     ]
 
     if expr_rows.empty:

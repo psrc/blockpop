@@ -34,8 +34,18 @@ def get_data(census_year, pums_table, state_id_str, state_abbr, pipeline, overwr
     pums_url = f"https://www2.census.gov/programs-surveys/acs/data/pums/{census_year}/5-Year/csv_{pums_table}{state_abbr}.zip"
     r = urlopen(pums_url).read()
     archive = ZipFile(io.BytesIO(r))
-    archive.extract(file_name, os.path.join(output_dir, "intermediate"))
-    print(f"Downloaded and extracted: {file_name} to {os.path.join(output_dir, 'intermediate')}")
+    # the CSV member's name varies by vintage (e.g. "psam_h53.csv" vs "ss11hwa.csv"),
+    # so find it by extension instead of assuming the modern naming convention.
+    csv_members = [name for name in archive.namelist() if name.lower().endswith('.csv')]
+    if len(csv_members) != 1:
+        raise ValueError(f"Expected exactly one CSV file in {pums_url}, found: {csv_members}")
+    member_name = csv_members[0]
+    intermediate_dir = os.path.join(output_dir, "intermediate")
+    archive.extract(member_name, intermediate_dir)
+    extracted_path = os.path.join(intermediate_dir, member_name)
+    if extracted_path != file_path:
+        os.replace(extracted_path, file_path)
+    print(f"Downloaded and extracted: {file_name} to {intermediate_dir}")
 
 def run_step(context):
     print("Downloading PUMS data...")

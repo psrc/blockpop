@@ -1,0 +1,16 @@
+base_year: 2010
+acs_year: 2011
+
+data_dir: data
+output_dir: output
+
+census_key: CENSUS_KEY
+
+steps:
+# - blockpop.steps.get_acs_data
+# - blockpop.steps.get_dec_data
+# - blockpop.steps.pums_download
+# - blockpop.steps.create_seed_data
+# - blockpop.steps.create_puma_tract_lookup
+# - blockpop.steps.create_puma_block_lookup
+- blockpop.steps.create_marginals

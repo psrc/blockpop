@@ -57,7 +57,7 @@ def create_seed_data(pipeline):
     data_dir = pipeline.data_dir
     households.to_csv(data_dir + '/seed_households.csv', index=False)
     persons.to_csv(data_dir + '/seed_persons.csv', index=False)
-    print(f"Seed data created: {len(households)} households, {len(persons)} persons")
+    print(f"State seed data created: {households['wgtp'].sum():,.0f} households, {persons['pwgtp'].sum():,.0f} persons for state id: {state_id_str}.")
     return households, persons
 
 

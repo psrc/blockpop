@@ -93,7 +93,7 @@ output_tables:
 output_synthetic_population:
   household_id: household_id
   households:
-    filename: synthetic_households.csv
+    filename: popsim_hh.csv
     columns:
       - hh_id
       - wgtp
