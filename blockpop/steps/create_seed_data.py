@@ -54,6 +54,14 @@ def create_seed_data(pipeline):
     households = households[[c for c in dict.fromkeys(h_cols) if c in households.columns]]
     persons = persons[[c for c in dict.fromkeys(p_cols) if c in persons.columns]]
 
+    # use nullable Int64 so -1 sentinels can become NaN instead of staying as ints
+    households = households.astype({c: 'Int64' for c in households.select_dtypes(include='int').columns})
+    persons = persons.astype({c: 'Int64' for c in persons.select_dtypes(include='int').columns})
+
+    # -1 is used as a sentinel for missing/not-applicable values in expressions
+    households = households.replace(-1, pd.NA)
+    persons = persons.replace(-1, pd.NA)
+
     data_dir = pipeline.data_dir
     households.to_csv(data_dir + '/seed_households.csv', index=False)
     persons.to_csv(data_dir + '/seed_persons.csv', index=False)

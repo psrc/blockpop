@@ -7,9 +7,9 @@ persons.household_id,persons.household_id,
 households.persons,households['NP'],
 households.building_type,households['BLD'].astype(int),
 households.tenure,"np.where(households.TEN.isin([1,2]),1,np.where(households.TEN.isin([3,4]),2,0))",vacant units get 0 since TEN is blank for them
-households.income,"np.where(households.NP > 0,round(households['ADJINC'] / 1000000 * households['HINCP'],0).fillna(0),-1).astype(int)",-1 for vacant units
-households.rent,"np.where(households.NP > 0,round(households['ADJHSG'] / 1000000 * households['GRNTP'],0).fillna(0),-1).astype(int)",-1 for vacant units
-households.home_value,"np.where(households.NP > 0,round(households['ADJHSG'] / 1000000 * households['VALP'],0).fillna(0),-1).astype(int)",VALP is populated for for-sale vacant units so it must be overridden
+households.income,"np.where(households.NP > 0,round(households['ADJINC'] / 1000000 * households['HINCP'],2),-1)",-1 for vacant units
+households.rent,"np.where(households.TEN == 3,round(households['ADJHSG'] / 1000000 * households['GRNTP'],2),-1)",-1 for vacant units
+households.home_value,"np.where((households.TEN.isin([1,2])) | (households.VACS.isin([3,4])),round(households['ADJHSG'] / 1000000 * households['VALP'],2),-1)",VALP is populated for for-sale vacant units so it must be overridden
 persons.age,persons['AGEP'],
 persons.is_child,(persons['age'] < 18).astype(int),
 persons.is_adult,(persons['age'] >= 18).astype(int),
